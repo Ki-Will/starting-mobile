@@ -1,191 +1,298 @@
-import React, { useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
+import { useState } from 'react';
 import {
-  View,
+  Alert,
+  Button,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
   Text,
   TextInput,
-  Switch,
-  Pressable,
-  StyleSheet,
-  ScrollView,
-  Button,
-  Alert,
+  View
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-export default function FormScreen() {
-  // Text input states
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [bio, setBio] = useState('');
+export default function FormProject() {
+  // --- Existing State ---
+  const [name, setName] = useState<string>('');
+  const [isSwitchOn, setIsSwitchOn] = useState<boolean>(false);
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [isImageModalVisible, setImageModalVisible] = useState<boolean>(false);
 
-  // Other form element states
-  const [subscribe, setSubscribe] = useState(false);
-  const [agreeTerms, setAgreeTerms] = useState(false);
+  // --- NEW STATE ---
+  const [age, setAge] = useState<string>('');
+  const [dob, setDob] = useState<string>('');
+  const [agreedToTerms, setAgreedToTerms] = useState<boolean>(false);
+  const [selectedRole, setSelectedRole] = useState<string>(''); // For Radio buttons
+
+  // Function to handle picking/taking a photo
+  const pickImage = async (useCamera: boolean) => {
+    if (useCamera) {
+      const { granted } = await ImagePicker.requestCameraPermissionsAsync();
+      if (!granted) return Alert.alert('Permission needed', 'Camera access is required.');
+    } else {
+      const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!granted) return Alert.alert('Permission needed', 'Gallery access is required.');
+    }
+
+    const result = await (useCamera 
+      ? ImagePicker.launchCameraAsync({ quality: 0.5 }) 
+      : ImagePicker.launchImageLibraryAsync({ quality: 0.5 })
+    );
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+      setImageModalVisible(true);
+    }
+  };
 
   const handleSubmit = () => {
-    // Construct JSON object
+    // Basic Validation
+    if (!name || !age || !selectedRole) {
+      return Alert.alert('Error', 'Please fill out Name, Age, and select a Role.');
+    }
+    if (!agreedToTerms) {
+      return Alert.alert('Error', 'You must agree to the terms and conditions.');
+    }
+
+    // Gather all data
     const formData = {
-      name,
-      email,
-      phone,
-      password,
-      bio,
-      subscribe,
-      agreeTerms,
+      name: name,
+      age: parseInt(age, 10), // Convert string to number for JSON
+      dateOfBirth: dob,
+      role: selectedRole,
+      agreedToTerms: agreedToTerms,
+      isFeatureEnabled: isSwitchOn,
+      imageUri: imageUri || 'No image selected',
+      timestamp: new Date().toISOString(),
     };
 
-    // Print to console as JSON (formatted output)
-    console.log('--- Form Submitted ---');
+    console.log('--- FORM SUBMITTED ---');
     console.log(JSON.stringify(formData, null, 2));
     console.log('----------------------');
-
-    // Also show a prompt on the UI
-    Alert.alert('Form Data', JSON.stringify(formData, null, 2));
+    
+    Alert.alert('Submitted!', 'Check your console for the JSON output.');
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Registration Form</Text>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView contentContainerStyle={styles.container}>
+          
+          <Text style={styles.header}>Full Form Project</Text>
 
-      {/* 1. Standard text input */}
-      <Text style={styles.label}>Name</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter your name"
-        value={name}
-        onChangeText={setName}
-      />
+          {/* Section 1: Basic Info */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Basic Info</Text>
+            
+            <Text style={styles.label}>Full Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="John Doe"
+              placeholderTextColor="#888"
+              value={name}
+              onChangeText={setName}
+            />
 
-      {/* 2. Email keyboard type */}
-      <Text style={styles.label}>Email</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="example@mail.com"
-        keyboardType="email-address" // Email keyboard
-        autoCapitalize="none"
-        value={email}
-        onChangeText={setEmail}
-      />
+            <Text style={styles.label}>Age (Number Input)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="25"
+              placeholderTextColor="#888"
+              keyboardType="number-pad" // Shows number pad on mobile
+              value={age}
+              onChangeText={(text) => setAge(text.replace(/[^0-9]/g, ''))} // Only allows numbers
+            />
 
-      {/* 3. Phone keyboard type */}
-      <Text style={styles.label}>Phone</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="1234567890"
-        keyboardType="phone-pad" // Numeric keyboard
-        value={phone}
-        onChangeText={setPhone}
-      />
+            <Text style={styles.label}>Date of Birth</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="DD/MM/YYYY"
+              placeholderTextColor="#888"
+              value={dob}
+              onChangeText={setDob}
+            />
+          </View>
 
-      {/* 4. Password input (obscured text) */}
-      <Text style={styles.label}>Password</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter password"
-        secureTextEntry // Password hidden
-        value={password}
-        onChangeText={setPassword}
-      />
+          {/* Section 2: Radio Buttons (Role Selection) */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Select a Role</Text>
+            
+            {['Developer', 'Designer', 'Manager'].map((role) => (
+              <Pressable 
+                key={role} 
+                style={styles.radioRow} 
+                onPress={() => setSelectedRole(role)}
+              >
+                <View style={[styles.radioOuter, selectedRole === role && styles.radioOuterSelected]}>
+                  {selectedRole === role && <View style={styles.radioInner} />}
+                </View>
+                <Text style={styles.bodyText}>{role}</Text>
+              </Pressable>
+            ))}
+          </View>
 
-      {/* 5. Multiline text input */}
-      <Text style={styles.label}>Bio</Text>
-      <TextInput
-        style={[styles.input, styles.multiline]}
-        placeholder="Tell us about yourself..."
-        multiline // Multiline
-        numberOfLines={4}
-        value={bio}
-        onChangeText={setBio}
-        textAlignVertical="top"
-      />
+          {/* Section 3: Checkbox & Toggles */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Preferences</Text>
+            
+            {/* Custom Checkbox */}
+            <Pressable 
+              style={styles.checkboxRow} 
+              onPress={() => setAgreedToTerms(!agreedToTerms)}
+            >
+              <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
+                {agreedToTerms && <Text style={{color: 'white', fontSize: 12, fontWeight: 'bold'}}>✓</Text>}
+              </View>
+              <Text style={styles.bodyText}>I agree to the Terms and Conditions</Text>
+            </Pressable>
 
-      {/* 6. Switch control */}
-      <View style={styles.row}>
-        <Text style={styles.label}>Subscribe to newsletter</Text>
-        <Switch value={subscribe} onValueChange={setSubscribe} />
-      </View>
+            {/* Standard Switch */}
+            <View style={[styles.row, { marginTop: 20 }]}>
+              <Text style={styles.bodyText}>Enable Dark Mode:</Text>
+              <Switch
+                value={isSwitchOn}
+                onValueChange={setIsSwitchOn}
+                trackColor={{ false: '#3e3e3e', true: '#007AFF' }}
+              />
+            </View>
+          </View>
 
-      {/* 7. Custom checkbox (implemented with Pressable) */}
-      <Pressable
-        style={styles.checkboxRow}
-        onPress={() => setAgreeTerms(!agreeTerms)}
-      >
-        <View style={[styles.checkbox, agreeTerms && styles.checkboxChecked]}>
-          {agreeTerms && <Text style={styles.checkmark}>✓</Text>}
-        </View>
-        <Text style={styles.label}>I agree to the terms</Text>
-      </Pressable>
+          {/* Section 4: Image Upload */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Attach a Photo</Text>
+            <View style={styles.rowButtons}>
+              <Button title="📸 Take Photo" onPress={() => pickImage(true)} color="#007AFF" />
+              <Button title="🖼️ Upload" onPress={() => pickImage(false)} color="#5856D6" />
+            </View>
+            
+            {imageUri && (
+              <Text style={{ color: '#28a745', marginTop: 15, textAlign: 'center', fontWeight: 'bold' }}>
+                ✅ Image attached!
+              </Text>
+            )}
+          </View>
 
-      {/* Submit button */}
-      <View style={styles.buttonContainer}>
-        <Button title="Submit Form" onPress={handleSubmit} />
-      </View>
-    </ScrollView>
+          {/* Submit Button */}
+          <Pressable style={styles.submitButton} onPress={handleSubmit}>
+            <Text style={styles.submitButtonText}>📤 Submit & Log JSON</Text>
+          </Pressable>
+
+        </ScrollView>
+
+        {/* --- IMAGE PREVIEW MODAL --- */}
+        <Modal visible={isImageModalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalText}>Image Preview</Text>
+              {imageUri && (
+                <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="cover" />
+              )}
+              <Button title="Looks Good" onPress={() => setImageModalVisible(false)} color="#28a745" />
+            </View>
+          </View>
+        </Modal>
+
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: { flex: 1, backgroundColor: '#121212' },
+  container: { padding: 20, paddingTop: 40 },
+  header: { fontSize: 26, fontWeight: 'bold', marginBottom: 30, textAlign: 'center', color: '#ffffff' },
+
+  section: {
+    backgroundColor: '#1e1e1e',
     padding: 20,
-    paddingTop: 60,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    borderRadius: 12,
     marginBottom: 20,
-    textAlign: 'center',
-  },
-  label: {
-    fontSize: 16,
-    marginBottom: 5,
-    marginTop: 10,
-    fontWeight: '500',
-  },
-  input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#333',
+  },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: '#ffffff' },
+  label: { color: '#aaa', fontSize: 14, marginBottom: 5, marginLeft: 2 },
+  bodyText: { color: '#e0e0e0', fontSize: 16 },
+  
+  input: {
+    height: 45,
+    borderColor: '#444',
+    borderWidth: 1,
     borderRadius: 8,
-    padding: 10,
+    paddingHorizontal: 15,
+    marginBottom: 15,
+    color: '#ffffff',
+    backgroundColor: '#2a2a2a',
     fontSize: 16,
-    backgroundColor: '#fff',
   },
-  multiline: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  rowButtons: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 5 },
+
+  // Radio Button Styles
+  radioRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  radioOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#888',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
+    marginRight: 10,
   },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 15,
-  },
+  radioOuterSelected: { borderColor: '#007AFF' },
+  radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#007AFF' },
+
+  // Checkbox Styles
+  checkboxRow: { flexDirection: 'row', alignItems: 'center' },
   checkbox: {
     width: 24,
     height: 24,
+    borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#333',
-    borderRadius: 4,
-    marginRight: 10,
+    borderColor: '#888',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 10,
   },
-  checkboxChecked: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+  checkboxChecked: { backgroundColor: '#007AFF', borderColor: '#007AFF' },
+
+  submitButton: {
+    backgroundColor: '#28a745',
+    padding: 18,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 40,
   },
-  checkmark: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+  submitButtonText: { color: 'white', fontWeight: 'bold', fontSize: 18 },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.85)',
   },
-  buttonContainer: {
-    marginTop: 30,
-    marginBottom: 50,
+  modalContent: {
+    backgroundColor: '#1e1e1e',
+    padding: 20,
+    borderRadius: 15,
+    alignItems: 'center',
+    width: '90%',
+    borderWidth: 1,
+    borderColor: '#444',
+  },
+  modalText: { color: '#ffffff', fontSize: 20, fontWeight: 'bold', marginBottom: 15 },
+  previewImage: {
+    width: '100%',
+    height: 350,
+    borderRadius: 10,
+    marginBottom: 20,
   },
 });
